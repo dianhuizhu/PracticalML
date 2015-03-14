@@ -92,3 +92,9 @@ finalPredict
 
 #In the second run, I got 11 right. In total, I got 19 predicts right
 # out of the 20 test data points
+
+#Need to access using this link
+http://dianhuizhu.github.io/PracticalML/gh-pages/
+
+#########The above command didn't succeed. Re-try
+http://harpjs.com/docs/deployment/github-pages#project-pages
