@@ -1,0 +1,114 @@
+Practical Machine Learning Course Project 
+=======================================================
+<h2> Summary</h2>
+
+I don't quite understand the dataset. There are 160 columns in
+the original dataset. I couldn't find specifications on these
+columns in the original page at <a href="http://groupware.les.inf.puc-rio.br/har">
+http://groupware.les.inf.puc-rio.br/har</a>. Instead of trying
+to understand the dataset, I decided to focus on the methods
+that I learned from the class.
+<P>
+Here are the steps to pre-process the data and run the predict model on the final test set:
+<ol>
+<li> Data cleanup: remove all columns with NA more than 80%; Remove all non-numeric variables; Remove unwanted columns from the original dataset </li>
+<li> Data Pre-processing: inpute NAs, check near zero variables and use PCA to remove correlated variables </li>
+<li> Prediction: use a simple Random Forest model. The one with rpart was too slow. The first time I ran the model, I got 18/20 right. After runing the model for 3 times, I got 19/20 right and stopped.</li>
+</ol>
+
+<h2>Details</h2>
+
+<h3>1. Data load and cleanup </h3>
+Get all libraries first
+
+```{r}
+library(caret)
+library(kernlab)
+library(randomForest)
+```
+Load the training data, remove all columns with NAs more than 80%, remove all non-numeric columns, remove unwanted columns <BR>
+
+```{r}
+data <- read.csv("data/pml-training.csv", header=TRUE)
+data <- data[,colSums(is.na(data))<(nrow(data)*0.8)]
+
+# keep classe column and it's name, will append 
+# it to the pre-processed data
+classe<- data$classe;
+names(classe)<- "classe"
+
+data <- data[, sapply(data, is.numeric)]
+#Add classe back to the data set
+data <-cbind(data, classe)
+
+#The followings columns might not be useful for prediction, remove them too
+data <-subset(data, select = -c(X, raw_timestamp_part_1,
+              raw_timestamp_part_2, num_window)) 
+
+ncol(data)
+
+```
+As it shows above, there are 53 columns left after data cleaning<BR>
+
+<h3> 2. Data pre-processing </h3>
+Inpute all NAs in the dataset first
+```{r}
+preObj <- preProcess(data[, -c(53)], method ="knnImpute")
+```
+The following command shows that there are no near zero variables
+```{r}
+nearZeroVar(data, saveMetrics=TRUE)
+```
+Find correlated variables, use threshold .95
+
+```{r}
+M <- abs(cor(data[, -c(53)]))
+diag(M) <- 0
+which(M > 0.95, arr.ind=T)
+```
+There are 5 pairs that are correlated. Use PCA to remove correlated variables
+```{r}
+preProc <- preProcess(data[, -53], thresh=0.95, method='pca')
+```
+
+Create data partition for training and testing
+```{r}
+inTrain <- createDataPartition(y=data$classe, p=0.75, list=FALSE)
+training <-data[inTrain, ]
+testing <-data[-inTrain, ]
+```
+Get the new data sets for training and testing after PCA 
+```{r}
+trainPC <- predict(preProc, training[, -53])
+testPC <- predict(preProc, testing[, -53])
+```
+
+The following line shows the PCA generates 25 principal components
+```{r}
+ncol(trainPC)
+```
+
+<h3> 3. Run random forest model from randomForest package </h3>
+It is very slow to run modFit =train(training$classe, method='rf', data=trainPC). I decided to run a simple random forest model from package randomForest. It is much faster and the prediction result is promising
+```{r}
+modFit <- randomForest(training$classe ~. , data=trainPC)
+testPredict <- predict(modFit, testPC);
+confusionMatrix(testing$classe, testPredict)
+```
+
+The accuray for the test dataset is 0.97. I decided to do the prediction for the final test dataset.
+
+<h3> 4. Prediction on the final test dataset with 20 data points </h3>
+Load the test data set, extract the same columns that are used for training and apply the same PCA to get the dataset for prediction
+```{r}
+finalTest <- read.csv("data/pml-testing.csv", header=TRUE)
+testData <- finalTest[, sapply(finalTest, is.numeric)]
+testData1 <- testData[, names(data)[-53]]
+testPC <- predict(preProc, testData1)
+finalPredict <- predict(modFit, testPC)
+#finalPredict
+```
+
+I commented out the output for the prediction here. I got 19/20 prediction right with three runs. The first prediction got 18/20 right. The ones That I missed in the first predicition were for IDs 3 and 11. I got the same result fot those two in the second run. When I ran the model the third time, I got an different answer for 11 and it was correct. So, I got 19/20 predictions correct and I decided not to test my luck after that.
+
+
