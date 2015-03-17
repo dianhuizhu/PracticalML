@@ -1,4 +1,5 @@
 Steps I followed to do modelling and prediction
+
 1. Data cleanup
   - Remove all columns with NA more than 80%
   - Remove all non-numeric variables
